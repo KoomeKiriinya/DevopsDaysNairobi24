@@ -1,0 +1,10 @@
+---
+{{ include "example-std-lib.ingress" . }}
+---
+{{ include "example-std-lib.deployment" . }}
+---
+{{ include "example-std-lib.service" . }}
+---
+{{ include "example-std-lib.external-secrets" . }}
+---
+

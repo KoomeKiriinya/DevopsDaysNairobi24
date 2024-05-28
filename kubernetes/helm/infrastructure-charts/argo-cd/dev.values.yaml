@@ -1,0 +1,153 @@
+---
+externalSecrets:
+  - name: argocd-secret
+    secretStore: aws-secret-manager-dev # pragma: allowlist secret
+    data:
+      - secretKey: serversecretkey  # pragma: allowlist secret
+        remoteRef:
+          key: argocd
+          property: secretkey
+      - secretKey: adminpassword  # pragma: allowlist secret
+        remoteRef:
+          key: argocd
+          property: adminpassword
+    template:
+      metadata:
+        labels: {}
+      data:
+        server.secretkey: '{{ .serversecretkey | toString }}'
+        admin.password: '{{ .adminpassword | toString }}'
+  - name: argocd-repo-creds-ssh-creds
+    secretStore: aws-secret-manager-infra-ops
+    data:
+      - secretKey: sshPrivateKey
+        remoteRef:
+          key: github/deploy-key
+    template:
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: repo-creds
+      data:
+        url: git@github.com:KoomeKiriinya/DevopsDaysNairobi24.git
+        sshPrivateKey: '{{ .sshPrivateKey | toString }}'
+argo-cd:
+  ## Globally shared configuration
+  global:
+    podAnnotations:
+      fluentbit.io/exclude: "true"
+  
+  ## Controller
+  controller:
+    # -- Resource limits and requests for the application controller pods
+    resources:
+      limits:
+        cpu: 500m
+        memory: 500Mi
+      requests:
+        cpu: 250m
+        memory: 500Mi
+
+  ## Dex
+  dex:
+    enabled: false
+
+  ## Redis
+  redis:
+    resources:
+      limits:
+        cpu: 1
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+
+  ## Server
+  server:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 200Mi
+      requests:
+        cpu: 100m
+        memory: 200Mi
+    readinessProbe:
+      timeoutSeconds: 3
+    livenessProbe:
+      timeoutSeconds: 3
+    ingress:
+      # -- Enable an ingress resource for the Argo CD server
+      enabled: true
+      # -- Additional ingress annotations
+      annotations:
+        kubernetes.io/tls-acme: "true"
+      hostname: argocd.example.com
+
+      # -- List of ingress paths
+      path: /
+      # -- Ingress path type. One of `Exact`, `Prefix` or `ImplementationSpecific`
+      pathType: Prefix
+      # -- Ingress TLS configuration
+      extraTls:
+        - hosts:
+          - argocd.example.com
+          secretName: argocd-example-certificate
+    config:
+      # Argo CD's externally facing base URL (optional). Required when configuring SSO
+      url: https://argocd.example.com
+      oidc.config: {}
+      resource.customizations: |
+        networking.k8s.io/Ingress:
+          health.lua: |
+            hs = {}
+            hs.status = "Healthy"
+            return hs
+      resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+        jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    configEnabled: true
+    extraArgs:
+      - --insecure
+    extensions:
+      # -- Enable support for extensions
+      ## This function in tech preview stage, do expect unstability or breaking changes in newer versions. Bump image.tag if necessary.
+      enabled: true
+
+  ## Repo Server
+  repoServer:
+    resources:
+      limits:
+        cpu: 1
+        memory: 500Mi
+      requests:
+        cpu: 500m
+        memory: 500Mi
+    initContainers:
+      - name: download-tools
+        image: alpine:3.8
+        command: [sh, -c]
+        args:
+          - wget -qO- https://get.helm.sh/helm-v3.10.1-linux-amd64.tar.gz | tar -xvzf - && mv linux-amd64/helm /custom-tools/
+        volumeMounts:
+          - mountPath: /custom-tools
+            name: custom-tools
+    volumeMounts:
+      - mountPath: /usr/local/bin/helm
+        name: custom-tools
+        subPath: helm
+    volumes:
+      - name: custom-tools
+        emptyDir: {}
+
+  # -- Additional command line arguments to pass to repo server
+  configs:
+    repositories:
+      private-repo:
+        url:  git@github.com:KoomeKiriinya/DevopsDaysNairobi24.git
+    secret:
+      # -- Create the argocd-secret
+      createSecret: false
+    params:
+      server.insecure: true
+
+    
+  

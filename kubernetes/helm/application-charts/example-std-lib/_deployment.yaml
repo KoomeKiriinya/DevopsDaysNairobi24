@@ -1,0 +1,174 @@
+{{- define "example-std-lib.deployment" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "example.fullname" . }}
+  labels: {{- include "example.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ include "example.name" . }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- else if ((.Values.rollout).enabled) }}
+  replicas: 0
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "example.deploymentSelectorLabels" . | nindent 6 }}
+  {{- if hasKey .Values "revisionHistoryLimit" }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "example.deploymentSelectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if hasKey .Values "terminationGracePeriodSeconds" }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "example.serviceAccountName" . }}
+      {{- end }}
+      {{- if hasKey .Values "enableServiceLinks" }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
+      {{- end }}
+      containers:
+        - name: {{ quote .Release.Name }}
+          image: {{ include "example.repository" . }}:{{ include "example.tag" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if ((.Values.health).enabled) }}
+          {{- if hasKey .Values.health.liveness "exec" }}
+          livenessProbe:
+            exec:
+              {{- with .Values.health.liveness.exec.command }}
+              command:
+                {{- toYaml . | nindent 14 }}
+              {{- end }}
+            initialDelaySeconds: {{ .Values.health.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.health.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.health.liveness.timeoutSeconds }}
+            successThreshold: {{ .Values.health.liveness.successThreshold }}
+            failureThreshold:  {{ .Values.health.liveness.failureThreshold }}
+          readinessProbe:
+            exec:
+              {{- with .Values.health.liveness.exec.command }}
+              command:
+                {{- toYaml . | nindent 14 }}
+              {{- end }}
+            initialDelaySeconds: {{ .Values.health.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.health.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.health.readiness.timeoutSeconds }}
+            successThreshold: {{ .Values.health.readiness.successThreshold }}
+            failureThreshold:  {{ .Values.health.readiness.failureThreshold }}
+          {{ end }}
+          {{ end }}
+          {{- if .Values.service.enabled }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.internalPort }}
+              protocol: TCP
+          {{- if .Values.extraPorts }}
+          {{- range .Values.extraPorts }}
+            - name: {{ .name }}
+              containerPort: {{ .containerPort }}
+              protocol: {{ .protocol }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.health.enabled }}
+          {{- with .Values.health.startup }}
+          startupProbe:
+            httpGet:
+              path: {{ .path }}
+              port: {{ $.Values.service.internalPort }}
+            initialDelaySeconds: {{ .initialDelaySeconds }}
+            periodSeconds: {{ .periodSeconds }}
+            timeoutSeconds: {{ .timeoutSeconds }}
+            successThreshold: {{ .successThreshold }}
+            failureThreshold:  {{ .failureThreshold }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.health.liveness.path }}
+              port: {{ .Values.service.internalPort }}
+            initialDelaySeconds: {{ .Values.health.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.health.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.health.liveness.timeoutSeconds }}
+            successThreshold: {{ .Values.health.liveness.successThreshold }}
+            failureThreshold:  {{ .Values.health.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.health.readiness.path }}
+              port: {{ .Values.service.internalPort }}
+            initialDelaySeconds: {{ .Values.health.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.health.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.health.readiness.timeoutSeconds }}
+            successThreshold: {{ .Values.health.readiness.successThreshold }}
+            failureThreshold:  {{ .Values.health.readiness.failureThreshold }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.envs }}
+          env:
+            {{- tpl (toYaml .Values.envs) . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- tpl (toYaml .) $ | nindent 12 }}
+          {{- end }}
+          {{- with .Values.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.preStop .Values.postStart }}
+          lifecycle:
+            {{- if .Values.preStop }}
+            preStop:
+              {{- toYaml .Values.preStop | nindent 14 }}
+            {{- end }}
+            {{- if .Values.postStart }}
+            postStart:
+              {{- toYaml .Values.postStart | nindent 14 }}
+            {{- end }}
+          {{- end }}
+      {{- if .Values.volumes }}
+      volumes:
+        {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- if .useDefault }}
+        - maxSkew: {{ .maxSkew }}
+          topologyKey: {{ .topologyKey }}
+          whenUnsatisfiable: {{ .whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              {{- include "example.deploymentSelectorLabels" $ | nindent 14 }}
+        {{- end }}
+        {{- with .extra }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      affinity:
+        {{- include "example.affinity" $ | nindent 8 }}
+      tolerations:
+        {{- include "example.tolerations" $ | nindent 8 }}
+{{- end }}
