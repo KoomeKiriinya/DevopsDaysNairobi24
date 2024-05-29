@@ -167,8 +167,4 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      affinity:
-        {{- include "example.affinity" $ | nindent 8 }}
-      tolerations:
-        {{- include "example.tolerations" $ | nindent 8 }}
 {{- end }}
