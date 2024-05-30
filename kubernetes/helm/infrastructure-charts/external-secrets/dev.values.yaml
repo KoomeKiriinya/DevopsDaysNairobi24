@@ -1,0 +1,34 @@
+secretStore:
+- name: aws-secret-manager-infra-ops
+  provider:
+    aws:
+      service: SecretsManager
+      region: eu-west-1
+
+- name: aws-secret-manager-dev
+  provider:
+    aws:
+      service: SecretsManager
+      region: eu-west-1
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: external-secrets-dev
+            namespace: external-secrets
+
+external-secrets:
+  replicaCount: 1
+
+  serviceAccount:
+    # -- Specifies whether a service account should be created.
+    create: true
+    # -- Annotations to add to the service account.
+    annotations:
+      # infra-ops secret access
+      eks.amazonaws.com/role-arn:  
+
+extraServiceAccounts:
+- name: external-secrets-dev
+  annotations:
+    # dev secret access
+    eks.amazonaws.com/role-arn: "arn:aws:iam::{example-aws-account-id}:role/external-secrets"

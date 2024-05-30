@@ -1,0 +1,62 @@
+---
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: git@github.com:KoomeKiriinya/DevopsDaysNairobi24.git
+apps:
+  - name: apps
+    destinationNamespace: argocd
+    path: kubernetes/helm/infrastructure-charts/argo-apps
+    helmValueFiles: [dev.values.yaml]
+    passHelmCredentials: true
+    targetRevision: main
+    autosyncenabled: true
+    syncpolicy:
+      automated:
+        prune: true
+        allowEmpty: false
+  - name: argocd
+    destinationNamespace: argocd
+    path: kubernetes/helm/infrastructure-charts/argo-cd
+    helmValueFiles: [dev.values.yaml]
+    passHelmCredentials: true
+    targetRevision: main
+    autosyncenabled: true
+    syncpolicy:
+      automated:
+        prune: true
+        allowEmpty: false
+  - name: ingress-nginx
+    destinationNamespace: ingress-nginx
+    path: kubernetes/helm/infrastructure-charts/ingress-nginx
+    helmValueFiles: [dev.values.yaml]
+    passHelmCredentials: true
+    targetRevision: main
+    autosyncenabled: true
+    syncpolicy:
+      automated:
+        prune: true
+        allowEmpty: false
+  - name: cert-manager
+    destinationNamespace: cert-manager
+    path: kubernetes/helm/infrastructure-charts/cert-manager
+    helmValueFiles: [dev.values.yaml]
+    passHelmCredentials: true
+    targetRevision: main
+    autosyncenabled: true
+    syncpolicy:
+      automated:
+        prune: true
+        allowEmpty: false
+  - name: external-secrets
+    destinationNamespace: external-secrets
+    path: kubernetes/helm/infrastructure-charts/external-secrets
+    helmValueFiles: [dev.values.yaml]
+    passHelmCredentials: true
+    targetRevision: main
+    autosyncenabled: true
+    syncpolicy:
+      automated:
+        prune: true
+        allowEmpty: false

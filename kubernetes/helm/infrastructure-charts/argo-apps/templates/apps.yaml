@@ -1,0 +1,38 @@
+{{ $global := . -}}
+{{- range $app := .Values.apps -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ $app.name }}
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  {{- with $app.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  destination:
+    namespace: {{ $app.destinationNamespace }}
+    server: {{ $global.Values.spec.destination.server }}
+  project: default
+  source:
+    path: {{ $app.path }}
+    repoURL: {{ $global.Values.spec.source.repoURL }}
+    targetRevision: {{ $app.targetRevision }}
+    {{- if hasKey $app "helmValueFiles" }}
+    helm:
+      passCredentials: {{ $app.passHelmCredentials }}
+      valueFiles:
+        {{- toYaml $app.helmValueFiles | nindent 8 }}
+    {{- end }}
+  {{- if  $app.autosyncenabled }}
+  syncPolicy:
+    {{- toYaml $app.syncpolicy | nindent 6 }}
+  {{- end }}
+  {{- with $app.ignoreDifferences }}
+  ignoreDifferences:
+    {{- toYaml . | nindent 6 }}
+  {{- end }}
+---
+{{- end }}

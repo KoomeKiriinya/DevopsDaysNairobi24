@@ -1,0 +1,38 @@
+ingress-nginx: 
+  controller:
+    admissionWebhooks:
+      enabled: false
+    ingressClassResource:
+      enabled: true
+      default: true
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 3
+    metrics:
+      enabled: true
+    replicaCount: 2
+    service:
+      externalTrafficPolicy: Local
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+        service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+        service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    stats:
+      enabled: true
+    resources:
+      limits:
+        memory: 400Mi
+      requests:
+        cpu: 25m
+        memory: 400Mi
+    config:
+      proxy-read-timeout: 300
+      proxy-body-size: "20m"
+
+  rbac:
+    create: true
+
+  serviceAccount:
+    create: true
