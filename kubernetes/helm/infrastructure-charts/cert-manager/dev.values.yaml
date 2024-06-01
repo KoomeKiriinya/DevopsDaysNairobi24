@@ -1,0 +1,24 @@
+externalSecrets:
+- name: cloudflare-api-token-secret
+  secretStore: aws-secret-manager-infra-ops
+  data:
+  - secretKey: api-token
+    remoteRef:
+      key: cloudflare/apitoken
+clusterissuer:
+  name: letsencrypt
+  email: devops@example.com
+  server: https://acme-v02.api.letsencrypt.org/directory
+  solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token-secret
+            key: api-token
+cert-manager:
+  enabled: true
+  ingressShim:
+    defaultIssuerName: letsencrypt
+    defaultIssuerKind: ClusterIssuer
+  serviceAccount:
+    create: true

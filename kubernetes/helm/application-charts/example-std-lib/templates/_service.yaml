@@ -1,0 +1,33 @@
+{{- define "example-std-lib.service" -}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "example.fullname" . }}
+  labels:
+    {{- include "example.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  {{- if hasKey .Values.service "externalTrafficPolicy" }}
+  externalTrafficPolicy: {{ .Values.service.externalTrafficPolicy }}
+  {{- end }}
+  ports:
+    - port: {{ .Values.service.externalPort }}
+      targetPort: {{ .Values.service.internalPort }}
+      protocol: TCP
+      name: http
+  {{- if .Values.extraPorts }}
+  {{- range .Values.extraPorts }}
+    - port: {{ .servicePort }}
+      targetPort: {{ .containerPort }}
+      protocol: {{ .protocol }}
+      name: {{ .name }}
+  {{- end }}
+  {{- end }}
+  selector:
+    {{- include "example.deploymentSelectorLabels" . | nindent 4 }}
+{{- end }}
