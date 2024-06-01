@@ -3,8 +3,5 @@ apiVersion: v2
 name: example-std-lib
 description: A Helm chart for Overhaul apps
 type: library
-# Update version once helm std lib is updated
-# Also, update ../test-oh-std-lib/Chart.yaml
-# tests will break if version does not match
 version: 1.0.0
 appVersion: 1.0.1
